@@ -18,7 +18,7 @@ using System.Web.Script.Serialization;
 public class hn_SimpeFileUploader : IHttpHandler
 {
 
-    public void ProcessRequest(HttpContext context)
+    public  void ProcessRequest(HttpContext context)
     {
 
         HttpResponse oResponse = context.Response;
@@ -82,7 +82,7 @@ public class hn_SimpeFileUploader : IHttpHandler
                 foreach (string fle in old_files)
                 {
                     FileInfo fi = new FileInfo(fle);
-                    if (fi.LastAccessTime < DateTime.Now.AddDays(-3))
+                    if (fi.CreationTime < DateTime.Now.AddDays(-1))
                         fi.Delete();
                 }
                 // delete input pdf file 
@@ -144,7 +144,7 @@ public class hn_SimpeFileUploader : IHttpHandler
                     accountList = ",\"accountTotals\":" + pi.getJson() ;
 
                     InterestPaid = pi.Accounts.Find(item => item.InterestAccountNumber == pi.MainAccount).Total;
-                    
+
 
                 }
                 else
@@ -154,6 +154,18 @@ public class hn_SimpeFileUploader : IHttpHandler
                 }
 
                 pdfUtility.genPDF(pathToSave, InterestPaid, pi.BalanceAtEnd, startDate, endDate, stmnts, region, name, num);
+
+                try
+                {
+                    string DBpath = HttpContext.Current.Server.MapPath("~/App_Data/") + "jsonDB.json";
+
+                    DAL.dbInsertAsync(DBpath, name, region);
+                }
+                catch(Exception ww)
+                {
+                        // ignore for now --- working on saqve to DB - in the meantime the report gen will work 
+                }
+                // log to DB 
 
                 str_image = "{\"filename\":\"" + str_image + "\"" +  accountList  + "}";
 
