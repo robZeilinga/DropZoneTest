@@ -172,12 +172,16 @@ static class NumbersToWords
                 tempStr = begin.Trim() + " and " + tempStr2.Trim();
             }
 
-            pos = tempStr.LastIndexOf("hundred", pos - 1);
-            begin = tempStr.Substring(0, pos + 7);
-            tempStr2 = tempStr.Substring(pos + 7).Trim();
-            if (!tempStr2.StartsWith("thousand"))
+            int pos2 = begin.Trim().LastIndexOf("hundred", 8);
+            //int pos2 = tempStr.LastIndexOf("hundred", pos + 1);
+            if (pos2 != -1)
             {
-                tempStr = begin.Trim() + " and " + tempStr2.Trim();
+                string begin2 = begin.Substring(0, pos2 + 7);
+                tempStr2 = begin2.Substring(pos2 + 7).Trim();
+                if (!tempStr2.StartsWith("thousand"))
+                {
+                    tempStr = begin2.Trim() + " and " + tempStr2.Trim();
+                }
             }
         }
 

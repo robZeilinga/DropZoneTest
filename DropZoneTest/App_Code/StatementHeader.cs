@@ -20,11 +20,32 @@ public class StatementHeader
     public string AddressedTo { get; set; }
     public string CompanyName { get; set; }
 
+
+    public static string Language { get; set; }
+    
     private int thisPageNumber = 0;
 
+    private static string getResX(string key)
+    {
+        return (string)HttpContext.GetGlobalResourceObject(Language, key);
+    }
 
     public StatementHeader(string thePage)
     {
+        Language = "";
+        if( thePage.Contains("## These fees are inclusive of VAT"))
+        {
+            Language = "English";
+        }
+        if (thePage.Contains("## Hierdie koste sluit BTW in"))
+        {
+            Language = "Afrikaans";
+        }
+
+        if (Language == "")
+                {
+            return;
+        }
         lines = new List<StatementLine>();
         string[] sls = thePage.Split(new char[] { '~' });
         List<string> lsls = sls.ToList<string>();
@@ -39,16 +60,17 @@ public class StatementHeader
         {
             string t = ll.Trim();
 
+            //RENTE OP OORTREKKING TOT OP 01 24 LIMIET 1 370602145 @11,450% 106.432,84- 01 25 1.905.875,05-000000093
             //INTEREST ON OVERDRAFT UP TO 02 24 LIMIT 1 280015135 @11,700% 
 
-            if (t.Contains("INTEREST ON"))
+            if (t.Contains(getResX("InterestOn")))
             {
                 // finished ----
                 // break;
             }
 
 
-            if (t.StartsWith("## These fees are inclusive of VAT"))
+            if (t.StartsWith(getResX("FeesAreInclusive")))
             {
                 // finished ----
                 itemsStarted = false;
@@ -67,11 +89,12 @@ public class StatementHeader
                     index++;
                     if (previousMonth == 0) previousMonth = FromDate.Month;
 
-                    if (t.StartsWith("BALANCE BROUGHT FORWARD"))
+                    if (t.StartsWith(getResX("BalanceBroughtForward")))
+
                     {
                         // BALANCE BROUGHT FORWARD 01 14 590.542,50-~
                         StatementLine bbf = new StatementLine();
-                        bbf.Narrative = "BALANCE BROUGHT FORWARD";
+                        bbf.Narrative = getResX("BalanceBroughtForward");
                         bbf.transactionDate = FromDate;
                         bbf.Month = FromDate.Month;
                         bbf.Day = FromDate.Day;
@@ -83,14 +106,16 @@ public class StatementHeader
                     }
                     else
                     {
-                        if (narrative.Contains("ON OVERDRAFT") && !narrative.Contains("LIMIT"))
+                        //RENTE OP OORTREKKING TOT OP 01 24 LIMIET 1 370602145 @11,450% 106.432,84- 01 25 1.905.875,05-000000093
+
+                        if (narrative.Contains(getResX("OnOverdraft")) && !narrative.Contains(getResX("Limit"))) 
                         {
 
                         }
                         
 
                         
-                        StatementLine sl = new StatementLine(narrative, t, index, thisPageNumber, FromDate, previousMonth);
+                        StatementLine sl = new StatementLine(narrative, t, index, thisPageNumber, FromDate, previousMonth, Language);
                         previousMonth = sl.Month;
                         lines.Add(sl);
                         narrative = "";
@@ -122,39 +147,50 @@ public class StatementHeader
             }
 
             // Statement from 14 January 2017 to 13 February 2017~
-            if (t.StartsWith("Statement from "))
+            if (t.StartsWith(getResX("StatementFrom")))
             {
                 GetStatementDates(t);
                 continue;
             }
             //BUSINESS CURRENT ACCOUNT Account Number 08 275 504 3~
-            if (t.Contains("Account Number"))
+            if (t.Contains(getResX("AccountNumber")))
             {
                 GetAccountNumber(t);
                 continue;
             }
             //ALIWAL NORTH 0020 Statement No 13~
-            if (t.Contains("Statement No"))
+            if (t.Contains(getResX("StatementNo")))
             {
                 StatementNumber = GetStatmentNumber(t);
                 continue;
             }
             //Month-end Balance R 522.676,83-~
-            if (t.StartsWith("Month-end Balance "))
+            if (t.StartsWith(getResX("MonthEndBalance")))
             {
                 GetMonthEndBalance(t);
                 continue;
             }
             //Page 1 of 34~
-            if (t.StartsWith("Page "))
+            if (t.StartsWith(getResX("Page") + " "))
             {
                 GetStatementPages(t);
                 continue;
             }
-            if (t == "Fee")
+            if (Language == "English")
             {
-                itemsStarted = true;
-                continue;
+                if (t == "Fee")
+                {
+                    itemsStarted = true;
+                    continue;
+                }
+            }
+            else
+            {
+                if (t.Contains("Diensgeld") && t.Contains("Ref"))
+                {
+                    itemsStarted = true;
+                    continue;
+                }
             }
         }
     }
@@ -169,9 +205,21 @@ public class StatementHeader
     {
         // difficult - return To Date 
         // Statement from 14 January 2017 to 13 February 2017~
-        int pos2 = line.IndexOf(" to ", 14);
-        this.FromDate = DateTime.Parse(line.Substring(14, pos2 - 14).Trim());
-        this.ToDate = DateTime.Parse(line.Substring(pos2 + 4));
+        int ff = 14;
+        if (Language != "English") ff = 9;
+        int pos2 = line.IndexOf(" " + getResX("to") + " ", ff);
+        string fdate = line.Substring(ff, pos2 - ff).Trim();
+        string tdate = line.Substring(pos2 + 4);
+        if (Language == "English")
+        {
+            this.FromDate = DateTime.Parse(fdate);
+            this.ToDate = DateTime.Parse(tdate);
+        }
+        if (Language == "Afrikaans")
+        {
+            this.FromDate = DateTime.Parse(Translate.translateDateToEnglish( fdate));
+            this.ToDate = DateTime.Parse(Translate.translateDateToEnglish(tdate));
+        }
 
     }
 
@@ -179,10 +227,12 @@ public class StatementHeader
     {
         //Statement No 13~
 
-        int pos = line.IndexOf("Statement No");
+        string target = getResX("StatementNo");
+        int tLen = target.Length;
+        int pos = line.IndexOf(target);
         if (pos != -1)
         {
-            return int.Parse(line.Substring(pos + 12).Trim());
+            return int.Parse(line.Substring(pos + tLen).Trim());
         }
         return -1;
     }
@@ -190,10 +240,12 @@ public class StatementHeader
     private void GetAccountNumber(string line)
     {
         //BUSINESS CURRENT ACCOUNT Account Number 08 275 504 3~
-        int pos = line.IndexOf("Account Number");
+        string target = getResX("AccountNumber");
+        int tLen = target.Length;
+        int pos = line.IndexOf(target);
         if (pos != -1)
         {
-            this.AccNumber = line.Substring(pos+14).Replace(" ", "").Trim();
+            this.AccNumber = line.Substring(pos + tLen).Replace(" ", "").Trim();
             this.AccountType = line.Substring(0, pos);
         }
     }

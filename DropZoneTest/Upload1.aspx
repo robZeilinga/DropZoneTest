@@ -319,52 +319,58 @@
 
                     success: function (file, response) {
                         console.log("success response " + response);
-                        var obj = JSON.parse(response);
-                        console.log("obj => " + obj);
-                        console.log(" filename => " + obj.hasOwnProperty("filename"));
-                        var result = "";
 
-                        //file.previewElement.classList.add("dz-success");
                         var sts = document.getElementById("stsSpan");
 
-                        if (obj.hasOwnProperty('filename')) {
-
-                            // NB change this to the path of the generated files on the proper server 
-                            //                        var sp = document.getElementById("hdnServerPrefix").value;
-
-                            var hdnId = "<%=hdnServerPrefix.ClientID%>";
-                            var hdn = document.getElementById(hdnId);
-                            var sp = hdn.value;
-                            console.log(" href path + filename  = " + sp + obj.filename);
-
-                            var ih = "<b>File Processed Successfully</b><br/><br/><a href='" + sp + obj.filename + "' target='_blank'> DOWNLOAD REPORT FOR STATEMENT ACCOUNT </a>";
-
-                            if (obj.hasOwnProperty("accountTotals")) {
-                                ih = ih + "<br/><br/><table border = \"1\" borderpadding=\"5px\" ><tr><th>Account number</th><th>Interest Amount</th></tr> ";
-
-                                var arr = obj.accountTotals;  // = [ {"id":"10", "class": "child-of-9"}, {"id":"11", "classd": "child-of-10"}];
-
-                                for (var i = 0; i < arr.length; i++) {
-                                    var a_obj = arr[i];
-                                    ih += "<tr>";
-                                    // console.log("array elements : " + a_obj);
-                                    for (var key in a_obj) {
-                                        var attrName = key;
-                                        var attrValue = a_obj[key];
-                                        if (attrName == "Total") {
-                                            ih += "<td align=right>" + numberWithCommas(attrValue) + "&nbsp;</td>";
-                                        }
-                                        else {
-                                            ih += "<td >" + attrValue.substring(0,2) + " " + attrValue.substring(2,5) + " " + attrValue.substring(5,8) + " " + attrValue.substring(8,9) +  "</td>";
-                                        }
-                                    }
-                                    ih += "</tr>";
-                                }
-                                ih += "</table>";
-                            }
-                            sts.innerHTML = ih;
+                        if (response === "No interest payments found") {
+                            sts.innerHTML = "<b>No Interest Payments Found, Please check Statement!</b>";
                         }
+                        else {
 
+                            var obj = JSON.parse(response);
+                            console.log("obj => " + obj);
+                            console.log(" filename => " + obj.hasOwnProperty("filename"));
+                            var result = "";
+
+
+                            if (obj.hasOwnProperty('filename')) {
+
+                                // NB change this to the path of the generated files on the proper server 
+                                //                        var sp = document.getElementById("hdnServerPrefix").value;
+
+                                var hdnId = "<%=hdnServerPrefix.ClientID%>";
+                                var hdn = document.getElementById(hdnId);
+                                var sp = hdn.value;
+                                console.log(" href path + filename  = " + sp + obj.filename);
+
+                                var ih = "<b>File Processed Successfully</b><br/><br/><a href='" + sp + obj.filename + "' target='_blank'> DOWNLOAD REPORT FOR STATEMENT ACCOUNT </a>";
+
+                                if (obj.hasOwnProperty("accountTotals")) {
+                                    ih = ih + "<br/><br/><table border = \"1\" borderpadding=\"5px\" ><tr><th>Account number</th><th>Interest Amount</th></tr> ";
+
+                                    var arr = obj.accountTotals;  // = [ {"id":"10", "class": "child-of-9"}, {"id":"11", "classd": "child-of-10"}];
+
+                                    for (var i = 0; i < arr.length; i++) {
+                                        var a_obj = arr[i];
+                                        ih += "<tr>";
+                                        // console.log("array elements : " + a_obj);
+                                        for (var key in a_obj) {
+                                            var attrName = key;
+                                            var attrValue = a_obj[key];
+                                            if (attrName == "Total") {
+                                                ih += "<td align=right>" + numberWithCommas(attrValue) + "&nbsp;</td>";
+                                            }
+                                            else {
+                                                ih += "<td >" + attrValue.substring(0, 2) + " " + attrValue.substring(2, 5) + " " + attrValue.substring(5, 8) + " " + attrValue.substring(8, 9) + "</td>";
+                                            }
+                                        }
+                                        ih += "</tr>";
+                                    }
+                                    ih += "</table>";
+                                }
+                                sts.innerHTML = ih;
+                            }
+                        }
 
                     },
 

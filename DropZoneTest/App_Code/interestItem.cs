@@ -19,7 +19,9 @@ public class interestItem
 
     public interestItem(string line, string Year, string StmntNum)
     {
-        //INTEREST ON OVERDRAFT UP TO 01 24 OVER LIMIT 1 082755043 @15,050% 98,94- 01 25 280.196,28-000000093
+
+        //RENTE OP OORTREKKING TOT OP    01 24    LIMIET 1      370602145 @11,450% 106.432,84-  01 25 1.905.875,05- 000000093
+        //INTEREST ON OVERDRAFT UP TO    01 24    OVER LIMIT 1  082755043 @15,050% 98,94-       01 25 280.196,28-   000000093
         bool isNeg = false;
         string amt = "";
         // we are only interested int he stuff after the % 

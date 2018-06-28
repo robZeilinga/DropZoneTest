@@ -117,7 +117,7 @@ public static class pdfUtility
                 text.Append(thePage);
 
                 StatementHeader sh = new StatementHeader(thePage);
-                statements.Add(sh);
+                if(sh.AccNumber != null) statements.Add(sh);
             }
             DateTime end = DateTime.Now;
 

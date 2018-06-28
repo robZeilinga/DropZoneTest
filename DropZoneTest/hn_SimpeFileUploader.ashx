@@ -75,99 +75,95 @@ public class hn_SimpeFileUploader : IHttpHandler
 
                 List<StatementHeader> stmnts = pdfUtility.ExtractStatementsFromPdf(pathToSave);
 
-
-
-                // GET A LIST OF ALL FILES OLDER THAN 2 DAYS & DELETE 
-                string[] old_files = System.IO.Directory.GetFiles(HttpContext.Current.Server.MapPath("~/MediaUploader/"));
-                foreach (string fle in old_files)
+                if (stmnts.Count > 0)
                 {
-                    FileInfo fi = new FileInfo(fle);
-                    if (fi.CreationTime < DateTime.Now.AddDays(-1))
-                        fi.Delete();
-                }
-                // delete input pdf file 
-                System.IO.File.Delete(pathToSave);
 
-                List<string> AccountNumbers = new List<string>();
-
-                foreach (StatementHeader sh in stmnts)
-                {
-                    foreach (StatementLine sl in sh.lines)
+                    // GET A LIST OF ALL FILES OLDER THAN 2 DAYS & DELETE 
+                    string[] old_files = System.IO.Directory.GetFiles(HttpContext.Current.Server.MapPath("~/MediaUploader/"));
+                    foreach (string fle in old_files)
                     {
-                        if (sl.transactionDate >= startDate)
+                        FileInfo fi = new FileInfo(fle);
+                        if (fi.CreationTime < DateTime.Now.AddDays(-1))
+                            fi.Delete();
+                    }
+                    // delete input pdf file 
+                    System.IO.File.Delete(pathToSave);
+
+                    List<string> AccountNumbers = new List<string>();
+
+                    foreach (StatementHeader sh in stmnts)
+                    {
+                        foreach (StatementLine sl in sh.lines)
                         {
-                            if (sl.transactionDate <= endDate)
+                            if (sl.transactionDate >= startDate)
                             {
-                                if (sl.Ref != 0)
+                                if (sl.transactionDate <= endDate)
                                 {
-                                    endBalance = sl.Balance;
-                                    if (sl.Ref == 93 && sl.Narrative.StartsWith("INTEREST ON"))
+                                    if (sl.Ref != 0)
                                     {
-                                        items.Add(sl);
-                                        //output += "Add Interest <==============================" + System.Environment.NewLine;
-                                        sum += sl.Debit;
-                                        // Finds first element greater than 20
-                                        InterestAccount ia = pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber);
-                                        if (ia == null)
+                                        endBalance = sl.Balance;
+                                        if (sl.Ref == 93 && sl.Narrative.StartsWith("INTEREST ON"))
                                         {
-                                            // create new interestAccount
-                                            pi.Accounts.Add(new InterestAccount(sl.InterestAccountNumber, sl.Debit));
-                                        }
-                                        else
-                                        {
-                                            // add interest to running total 
-                                            pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber).AddAmount(sl.Debit);
+                                            items.Add(sl);
+                                            //output += "Add Interest <==============================" + System.Environment.NewLine;
+                                            sum += sl.Debit;
+                                            // Finds first element greater than 20
+                                            InterestAccount ia = pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber);
+                                            if (ia == null)
+                                            {
+                                                // create new interestAccount
+                                                pi.Accounts.Add(new InterestAccount(sl.InterestAccountNumber, sl.Debit));
+                                            }
+                                            else
+                                            {
+                                                // add interest to running total 
+                                                pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber).AddAmount(sl.Debit);
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+                        pi.MainAccount = sh.AccNumber;
                     }
-                    pi.MainAccount = sh.AccNumber;
-                }
-                pi.Items = items;
-                pi.BalanceAtEnd = endBalance;
-                pi.InterestPaid = sum;
+                    pi.Items = items;
+                    pi.BalanceAtEnd = endBalance;
+                    pi.InterestPaid = sum;
 
-                string accountList = "";
-                str_image = "REPORT_" + System.IO.Path.GetFileNameWithoutExtension(fileName) + "_" + numFiles.ToString() + fileExtension;
+                    string accountList = "";
+                    str_image = "REPORT_" + System.IO.Path.GetFileNameWithoutExtension(fileName) + "_" + numFiles.ToString() + fileExtension;
 
-                // str_image = "REPORT_xxxx5043_5 - Copy.PDF";
-                pathToSave = HttpContext.Current.Server.MapPath("~/MediaUploader/") + str_image;
+                    // str_image = "REPORT_xxxx5043_5 - Copy.PDF";
+                    pathToSave = HttpContext.Current.Server.MapPath("~/MediaUploader/") + str_image;
 
-                decimal InterestPaid = 0;
+                    decimal InterestPaid = 0;
 
 
-                if (pi.Accounts.Count > 1)
-                {
-                    // many accounts - so generate list of acccounts only 
-                    accountList = ",\"accountTotals\":" + pi.getJson() ;
+                    if (pi.Accounts.Count > 1)
+                    {
+                        // many accounts - so generate list of acccounts only 
+                        accountList = ",\"accountTotals\":" + pi.getJson();
 
-                    InterestPaid = pi.Accounts.Find(item => item.InterestAccountNumber == pi.MainAccount).Total;
+                        InterestPaid = pi.Accounts.Find(item => item.InterestAccountNumber == pi.MainAccount).Total;
+
+
+                    }
+                    else
+                    {
+
+                        InterestPaid = pi.InterestPaid;
+                    }
+                    pdfUtility.genPDF(pathToSave, InterestPaid, pi.BalanceAtEnd, startDate, endDate, stmnts, region, name, num);
+
+
+                    str_image = "{\"filename\":\"" + str_image + "\"" + accountList + "}";
 
 
                 }
                 else
                 {
-
-                    InterestPaid = pi.InterestPaid;
+                    str_image = "No interest payments found";
                 }
-
-                pdfUtility.genPDF(pathToSave, InterestPaid, pi.BalanceAtEnd, startDate, endDate, stmnts, region, name, num);
-
-                try
-                {
-                    string DBpath = HttpContext.Current.Server.MapPath("~/App_Data/") + "jsonDB.json";
-
-                    DAL.dbInsertAsync(DBpath, name, region);
-                }
-                catch(Exception ww)
-                {
-                        // ignore for now --- working on saqve to DB - in the meantime the report gen will work 
-                }
-                // log to DB 
-
-                str_image = "{\"filename\":\"" + str_image + "\"" +  accountList  + "}";
 
                 context.Response.ClearContent();
                 context.Response.ContentType = "text/html";

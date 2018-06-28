@@ -23,10 +23,18 @@ public class StatementLine
     public Int64 Ref { get; set; }
     public string text { get; set; }
     public string InterestAccountNumber { get; set; }
+    public  string Language { get; set; }
+
+    private string getResX(string key)
+    {
+        return (string)HttpContext.GetGlobalResourceObject(Language, key);
+    }
+
 
     public StatementLine() { }
-    public StatementLine(string nar, string rest, int index, int pageNum, DateTime statementDate, int previousMonth)
+    public StatementLine(string nar, string rest, int index, int pageNum, DateTime statementDate, int previousMonth, string Language)
     {
+        this.Language = Language;
         this.isServiceFee = false;
         this.Narrative = nar;
         this.text = rest;
@@ -121,6 +129,7 @@ public class StatementLine
         lPos = text.LastIndexOf(" ");
         if (lPos != -1)
         {
+            /*
             string Service = text.Substring(lPos).Trim();
             if (Service == "##")
             {
@@ -139,20 +148,32 @@ public class StatementLine
                     //BALANCE BROUGHT FORWARD 4.420.990,79INTEREST ON OVERDRAFT UP TO 02 24 LIMIT 1 280015135 @11,700 %
 
                     case 20587:
+                        //DEBIETOORPLASING 9792 EASYPAY EASYP 1172000498 17,50 476,27 - 01 15 10.162.198,32 - 019600587
+
+
                         this.ServiceAmount = pdfUtility.getDecimal(Service);
                         text = text.Substring(0, lPos).Trim();
                         break;
                     case 19600587:
                         //CREDIT TRANSFER 9346~
-                        //OTE6600 LanherneGH 3.679,50 04 19 217.044,51 - 019600587~
-                        if (Narrative.StartsWith("CREDIT TRANSFER"))
+                        //OTE6600 LanherneGH                    3.679,50    04 19   217.044,51-     019600587~
+                        //KREDIETOORPLASING 9052
+                        //ABSA BANK 33 Kloovenburg              221,00      02 26   3.346.471,68-   063200587
+
+
+                        if (Narrative.StartsWith(getResX("CreditTransfer")))
                         {
                             // do nothing 
                         }
                         //DEBIT TRANSFER 9940~
                         //CENTRAFIN DEBIT~
-                        //029118:025397 17,50 489,06 - 04 25 8.629,64 - 019600587~
-                        if (Narrative.StartsWith("DEBIT TRANSFER"))
+                        //029118:025397     17,50   489,06-     04 25   8.629,64-   019600587~
+
+                        //DEBIETOORPLASING 9184
+                        //VODACOM 0238096838 
+                        //B0020935          17,50   773,63-     02 29   758.347,51- 019600587
+
+                        if (Narrative.StartsWith(getResX("DebitTransfer")))
                         {
                             this.ServiceAmount = pdfUtility.getDecimal(Service);
                             text = text.Substring(0, lPos).Trim();
@@ -160,10 +181,10 @@ public class StatementLine
                         break;
 
                     case 83:
-                        //IB PAYMENT TO~
+                        //IB PAYMENT TO~            //ELEKTRONIESE BANK BETALING NA
                         //GRAHAMSTOWN VEHICLE~
                         //263795552 7,33 360,00 - 02 14 456.025,58 - 000000083~
-                        if (Narrative.StartsWith("IB PAYMENT TO "))
+                        if (Narrative.StartsWith(getResX("IBPaymentTo")))
                         {
                             this.ServiceAmount = pdfUtility.getDecimal(Service);
                             text = text.Substring(0, lPos).Trim();
@@ -187,9 +208,18 @@ public class StatementLine
                             }
                         }
                         break;
-                    
+                    case 94:
+
+                        //KONTANTDEPOSITOFOOI 
+                        //TAK REK 370602145 DEP 
+                        //TAK 0507 ## 93,62- 01 15 11.413.360,94-000000094
+
+                        break;
+
+
                 }
             }
+            */
         }
         // check for interest payment 
         if(Ref == 93)
@@ -202,19 +232,22 @@ public class StatementLine
             //TO 02 24 280065019~
             //@10,500 %
 
-            if (Narrative.Contains("280016093"))
-            {
+            //RENTE OP OORTREKKING TOT
+            //OP 01 24 LIMIET 1 
+            //370602145 @11,450 % 106.432,84 - 01 25 1.905.875,05 - 000000093
 
-            }
+            //RENTE OP OORTREKKING TOT 
+            //OP 01 24 OOR LIMIET 1 
+            //370602145 @13,950% 83,24- 01 25 1.906.935,02-000000093
+
+            //RENTE OP OORTREKKING TOT 
+            //OP 02 24 370604946 
+            //@11,200% 54.772,60- 02 25 3.290.978,48-000000093
 
             if (text.Contains("@") && (text.Contains("%")))
             {
                 // get full narrative 
                 string tmp = Narrative += text;
-                if(tmp.Contains("280016093"))
-                {
-                    bool debug = true;
-                }
                 tmp = tmp.Replace("~", " ");
                 while (tmp.Contains("  "))
                 {
@@ -229,7 +262,7 @@ public class StatementLine
 
         Narrative += text;
 
-        if (!Narrative.StartsWith("BALANCE BROUGHT FORWARD"))
+        if (!Narrative.StartsWith(getResX("BalanceBroughtForward")))
         {
             // transaction Date 
             int Year = statementDate.Year;
@@ -286,7 +319,7 @@ public class StatementLine
             retVal += "".PadRight(15, ' '); ;  // 15 spaces
         }
         retVal += " ";
-        if (Narrative.StartsWith("BALANCE BROUGHT FORWARD"))
+        if (Narrative.StartsWith(getResX("BalanceBroughtForward")))
         {
             retVal += "".PadRight(6, ' '); ;  //  _01_12_
         }
@@ -298,7 +331,7 @@ public class StatementLine
 
         retVal += string.Format("{0:N2}", Balance).PadLeft(15, ' ') + " ";
 
-        if (!Narrative.StartsWith("BALANCE BROUGHT FORWARD"))
+        if (!Narrative.StartsWith(getResX("BalanceBroughtForward")))
         {
             retVal += "  " + Ref.ToString().PadLeft(9, '0');
         }
