@@ -70,7 +70,7 @@ public class StatementHeader
             }
 
 
-            if (t.StartsWith(getResX("FeesAreInclusive")))
+            if (t.StartsWith(getResX("FeesAreInclusive")) || t.StartsWith("**"))
             {
                 // finished ----
                 itemsStarted = false;
