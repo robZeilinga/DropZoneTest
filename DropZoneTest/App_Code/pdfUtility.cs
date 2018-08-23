@@ -115,9 +115,19 @@ public static class pdfUtility
                 string thePage = "~" + PdfTextExtractor.GetTextFromPage(reader, i);   // add leading newLine 
                 thePage = Regex.Replace(thePage, @"\r\n?|\n", "~");
                 text.Append(thePage);
-
-                StatementHeader sh = new StatementHeader(thePage);
-                if(sh.AccNumber != null) statements.Add(sh);
+                try
+                {
+                    if(statements.Count == 28)
+                    {
+                        Console.WriteLine("debug now!");
+                    }
+                    StatementHeader sh = new StatementHeader(thePage);
+                    if (sh.AccNumber != null) statements.Add(sh);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("error - " + e.Message);
+                }
             }
             DateTime end = DateTime.Now;
 

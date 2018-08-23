@@ -79,7 +79,7 @@ public class StatementHeader
 
             if (itemsStarted)
             {
-                if (t.Length < 28)
+                if (t.Length <= 28)
                 {
                     narrative += t + "~";
                     continue;
