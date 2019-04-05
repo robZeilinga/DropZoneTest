@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using Microsoft.VisualBasic;
+using System.Diagnostics;
 
 /// <summary>
 /// Summary description for StatementLine
 /// </summary>
 public class StatementLine
 {
+    bool deb = false;
+
     public int Index { get; set; }
     public int PageNumber { get; set; }
     public string Narrative { get; set; }
@@ -27,7 +30,17 @@ public class StatementLine
 
     private string getResX(string key)
     {
-        return (string)HttpContext.GetGlobalResourceObject(Language, key);
+        string retVal = "";
+        try
+        {
+            retVal = (string)HttpContext.GetGlobalResourceObject(Language, key);
+        }
+        catch(Exception e)
+        {
+            Debug.WriteLineIf(deb, "Exception getting Translation - Language [" + Language + "] key [" + key + "]");
+            Debug.WriteLineIf(deb, "Exception  : " + e);
+        }
+        return retVal;
     }
 
 
@@ -43,31 +56,12 @@ public class StatementLine
         this.Ref = 0;
 
 
-        //INTEREST ON OVERDRAFT UP TO 09 25 280016093 @11,050 %
-        //nar
-        //"INTEREST ON OVERDRAFT UP~TO 06 25 280016093~"
-        //rest
-        //"@11,300% 17.646,58- 06 26 6.580.516,04-000000093"
-        //index
-        //4
-        //pageNum
-        //10
-        //statementDate
-        //{ 6 / 12 / 2017 12:00:00 AM}
-        //previousMon
-        //6
-
-        //
-        // TODO: Add constructor logic here
-        //
-        //"029118:025397 17,50 489,06- 04 25 8.629,64- 019600587~    Service Fee
-
-        // get ref  -- 019600587~     Service Fee
-        // get ref  -- 000000093"
         string value = Microsoft.VisualBasic.Strings.Right(text, 9);
         this.Ref = Int64.Parse(value);
+
         // remove last 9 characters from text (ref) 
         this.text = text.Substring(0, text.Length - 9);
+        
         //"029118:025397 17,50 489,06- 04 25 8.629,64-    SF
         //"@11,300% 17.646,58- 06 26 6.580.516,04-
         string neg = Microsoft.VisualBasic.Strings.Right(text, 1);
@@ -129,97 +123,6 @@ public class StatementLine
         lPos = text.LastIndexOf(" ");
         if (lPos != -1)
         {
-            /*
-            string Service = text.Substring(lPos).Trim();
-            if (Service == "##")
-            {
-                this.isServiceFee = true;
-                text = text.Substring(0, lPos).Trim();
-                Debit = amount;
-            }
-            else
-            {
-                // ================================================================
-                //   this switch statement is to get the SERVICE fee applicable 
-                // ================================================================
-                switch (this.Ref)   
-                {
-
-                    //BALANCE BROUGHT FORWARD 4.420.990,79INTEREST ON OVERDRAFT UP TO 02 24 LIMIT 1 280015135 @11,700 %
-
-                    case 20587:
-                        //DEBIETOORPLASING 9792 EASYPAY EASYP 1172000498 17,50 476,27 - 01 15 10.162.198,32 - 019600587
-
-
-                        this.ServiceAmount = pdfUtility.getDecimal(Service);
-                        text = text.Substring(0, lPos).Trim();
-                        break;
-                    case 19600587:
-                        //CREDIT TRANSFER 9346~
-                        //OTE6600 LanherneGH                    3.679,50    04 19   217.044,51-     019600587~
-                        //KREDIETOORPLASING 9052
-                        //ABSA BANK 33 Kloovenburg              221,00      02 26   3.346.471,68-   063200587
-
-
-                        if (Narrative.StartsWith(getResX("CreditTransfer")))
-                        {
-                            // do nothing 
-                        }
-                        //DEBIT TRANSFER 9940~
-                        //CENTRAFIN DEBIT~
-                        //029118:025397     17,50   489,06-     04 25   8.629,64-   019600587~
-
-                        //DEBIETOORPLASING 9184
-                        //VODACOM 0238096838 
-                        //B0020935          17,50   773,63-     02 29   758.347,51- 019600587
-
-                        if (Narrative.StartsWith(getResX("DebitTransfer")))
-                        {
-                            this.ServiceAmount = pdfUtility.getDecimal(Service);
-                            text = text.Substring(0, lPos).Trim();
-                        }
-                        break;
-
-                    case 83:
-                        //IB PAYMENT TO~            //ELEKTRONIESE BANK BETALING NA
-                        //GRAHAMSTOWN VEHICLE~
-                        //263795552 7,33 360,00 - 02 14 456.025,58 - 000000083~
-                        if (Narrative.StartsWith(getResX("IBPaymentTo")))
-                        {
-                            this.ServiceAmount = pdfUtility.getDecimal(Service);
-                            text = text.Substring(0, lPos).Trim();
-                        }
-                        //IB FUTURE-DATED PAYMENT~
-                        //TO ANDRE SWANEPOEL TRU~
-                        //263940919 18,30 57.000,00 - 02 28 527.328,20 - 000000083~
-
-                        //IB FUTURE-DATED PAYMENT~
-                        //FROM STANNIC FAW 8.309,86 03 01 117.935,98 000000083
-                        if (Narrative.StartsWith("IB FUTURE-DATED PAYMENT~"))
-                        {
-                            if (rest.StartsWith("FROM "))
-                            {
-                                // do nothing 
-                            }
-                            else
-                            {
-                                this.ServiceAmount = pdfUtility.getDecimal(Service);
-                                text = text.Substring(0, lPos).Trim();
-                            }
-                        }
-                        break;
-                    case 94:
-
-                        //KONTANTDEPOSITOFOOI 
-                        //TAK REK 370602145 DEP 
-                        //TAK 0507 ## 93,62- 01 15 11.413.360,94-000000094
-
-                        break;
-
-
-                }
-            }
-            */
         }
         // check for interest payment 
         if(Ref == 93)
@@ -277,10 +180,37 @@ public class StatementLine
 
     public override string ToString()
     {
+        bool deb = false;
+        if(Narrative.StartsWith("INTEREST ON OVERDRAFT"))
+        {
+            //deb = true; 
+        }
+        // DEBUG DUMP =========================================
+        Debug.WriteLineIf(deb, "---------------------------------------------------------------------");
+        Debug.WriteLineIf(deb, "Balance : " + this.Balance);
+        Debug.WriteLineIf(deb, "Credit : " + this.Credit);
+        Debug.WriteLineIf(deb, "Day : " + this.Day);
+        Debug.WriteLineIf(deb, "Debit  : " + this.Debit);
+        Debug.WriteLineIf(deb, "Index : " + this.Index);
+        Debug.WriteLineIf(deb, "InterestAccountNumber : " + this.InterestAccountNumber);
+        Debug.WriteLineIf(deb, "isServiceFee : " + this.isServiceFee);
+        Debug.WriteLineIf(deb, "Language : " + this.Language);
+        Debug.WriteLineIf(deb, "Month : " +this.Month);
+        Debug.WriteLineIf(deb, "Narrative : " + this.Narrative);
+        Debug.WriteLineIf(deb, "Page Number : " + this.PageNumber);
+        Debug.WriteLineIf(deb, "Ref : " + this.Ref);
+        Debug.WriteLineIf(deb, "Service Amount : " + this.ServiceAmount);
+        Debug.WriteLineIf(deb, "Text : " + this.text);
+        Debug.WriteLineIf(deb, "Transaction date : "  +this.transactionDate);
+        // DEBUG DUMP =========================================
+        Debug.WriteLineIf(deb, "---------------------------------------------------------------------");
+
         int lnarLen = 0;
         string retVal = "";
         int nar_len = Narrative.Length;
+        Debug.WriteLineIf(deb, "Narrative Length : " + nar_len);
         int lpos = Narrative.LastIndexOf("~");
+        Debug.WriteLineIf(deb, "Last Pos of ~ : " + lpos);
         if (lpos == -1)
         {
             lnarLen = Narrative.Length;
@@ -289,7 +219,21 @@ public class StatementLine
         {
             lnarLen = nar_len - lpos - 1;
         }
-        retVal = Narrative.Replace("~", System.Environment.NewLine) + "".PadRight(30 - lnarLen, ' ');
+        Debug.WriteLineIf(deb, "Adjusted narrative len : " + lnarLen);
+
+        if (lnarLen < 30)
+        {
+            retVal = Narrative + "".PadRight(30 - lnarLen, ' ');
+            //retVal = Narrative.Replace("~", System.Environment.NewLine) + "".PadRight(30 - lnarLen, ' ');
+        }
+        else
+        {
+            retVal = Narrative;
+            //retVal = Narrative.Replace("~", System.Environment.NewLine);
+        }
+        Debug.WriteLineIf(deb, "After Replacement of ~ to newLine : " + retVal);
+
+
         if (isServiceFee)
         {
             retVal += "     ## ";

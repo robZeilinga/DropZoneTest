@@ -135,6 +135,9 @@
   <data name="FeesAreInclusive" xml:space="preserve">
     <value>## Hierdie koste sluit BTW in</value>
   </data>
+  <data name="FeeStructure" xml:space="preserve">
+    <value>Kostestruktuur</value>
+  </data>
   <data name="From" xml:space="preserve">
     <value />
   </data>

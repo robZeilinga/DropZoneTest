@@ -133,7 +133,10 @@
     <value>Fee</value>
   </data>
   <data name="FeesAreInclusive" xml:space="preserve">
-    <value>## These fees are inclusive of VAT</value>
+    <value>## These fees</value>
+  </data>
+  <data name="FeeStructure" xml:space="preserve">
+    <value>Fee Structure</value>
   </data>
   <data name="From" xml:space="preserve">
     <value>FROM</value>

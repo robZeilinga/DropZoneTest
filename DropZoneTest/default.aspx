@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeFile="Upload1.aspx.cs" Inherits="Upload1" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeFile="default.aspx.cs" Inherits="Upload1" %>
 
 <!DOCTYPE html>
 
@@ -111,8 +111,8 @@
 
         <div style="text-align: right; width: 667px;">
             <b>
-                <label style="font-size: x-large;">Certificate of Interest Generator &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label></b>
-            <img src="images/Logo_new_letterHead.JPG" style="height: 94px; width: 87px;" />
+                <label id="pageHeading" style="font-size: x-large;" >Certificate of Interest Generator &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label></b>
+            <img src="images/Logo_new_letterHead.JPG" style="height: 94px; width: 87px;" id="logo" />
 
         </div>
 
@@ -124,11 +124,19 @@
                     Drop PDF here. 
                 </div>
             </div>
+            <div class="form-group">
+                <label for="btn2015" class=" col-form-label" style="font-size: x-small;">Quick Set: </label>
+                <input id="btn2015" type="button" value="2015" onclick="set2015Dates()" style="font-size: x-small; width: inherit;" />
+                <input id="btn2016" type="button" value="2016" onclick="set2016Dates()" style="font-size: x-small; width: inherit;" />
+                <input id="btn2017" type="button" value="2017" onclick="set2017Dates()" style="font-size: x-small; width: inherit;" />
+                <input id="btn2018" type="button" value="2018" onclick="set2018Dates()" style="font-size: x-small; width: inherit;" />
+                &nbsp;&nbsp;&nbsp;<label class=" col-form-label" style="font-size: x-small;"> Ver 1.5  2019-04-04 </label>
 
+            </div>
             <div class="form-group">
                 <label for="datetimepicker6" class=" col-form-label">Financial Year Begin : </label>
                 <div class='input-group date' id='datetimepicker6'>
-                    <input type='text' class="form-control" id="dteFinStart" value="" />
+                    <input type='text' class="form-control" id="dteFinStart" value="" onchange="checkDates();" onblur="checkDates();" />
                     <span class="input-group-addon">
                         <span class="glyphicon glyphicon-calendar"></span>
                     </span>
@@ -137,7 +145,7 @@
             <div class="form-group">
                 <label for="datetimepicker7" class=" col-form-label">Financial Year End : </label>
                 <div class='input-group date' id='datetimepicker7'>
-                    <input type='text' class="form-control" id="dteFinEnd" value="" />
+                    <input type='text' class="form-control" id="dteFinEnd" value="" onchange="checkDates();" onblur="checkDates();" />
                     <span class="input-group-addon">
                         <span class="glyphicon glyphicon-calendar"></span>
                     </span>
@@ -185,6 +193,7 @@
             </div>
             <div>
                 <asp:HiddenField ID="hdnServerPrefix" runat="server" />
+                <asp:HiddenField ID="hdnDebugMode" value="none" runat="server" />
 
             </div>
 
@@ -220,6 +229,33 @@
                 }
                 return "";
             }
+
+            function set2015Dates() {
+                document.getElementById("dteFinStart").value = "2015-03-01";
+                document.getElementById("dteFinEnd").value = "2016-02-29"; 4
+                document.getElementById("stsSpan").innerHTML = "";
+                checkDates();
+            }
+
+            function set2016Dates() {
+                document.getElementById("dteFinStart").value = "2016-03-01";
+                document.getElementById("dteFinEnd").value = "2017-02-28";
+                document.getElementById("stsSpan").innerHTML = "";
+                checkDates();
+            }
+            function set2017Dates() {
+                document.getElementById("dteFinStart").value = "2017-03-01";
+                document.getElementById("dteFinEnd").value = "2018-02-28";
+                document.getElementById("stsSpan").innerHTML = "";
+                checkDates();
+            }
+            function set2018Dates() {
+                document.getElementById("dteFinStart").value = "2018-03-01";
+                document.getElementById("dteFinEnd").value = "2019-02-28";
+                document.getElementById("stsSpan").innerHTML = "";
+                checkDates();
+            }
+
 
 
             function btnSaveclick() {
@@ -293,8 +329,12 @@
                     addRemoveLinks: false,
 
 
+
                     init: function () {
                         this.on("processing", function (file) {
+                            var sts = document.getElementById("stsSpan");
+                            sts.innerHTML = "";
+
                             var startDate = document.getElementById("dteFinStart").value;
                             // strip out the '-' from the date 
                             startDate = startDate.substring(0, 4) + startDate.substring(5, 7) + startDate.substring(8, 10);
@@ -306,9 +346,10 @@
                             var region = encodeURI(document.getElementById("txtRegion").value);
                             var conName = encodeURI(document.getElementById("txtConsName").value);
                             var conNumber = encodeURI(document.getElementById("txtConsNumber").value);
+                            var debugMode = encodeURI(document.getElementById("hdnDebugMode").value);
 
 
-                            var url = "hn_SimpeFileUploader.ashx?start=" + startDate + "&end=" + endDate + "&region=" + region + "&name=" + conName + "&num=" + conNumber;
+                            var url = "hn_SimpeFileUploader.ashx?start=" + startDate + "&end=" + endDate + "&region=" + region + "&name=" + conName + "&num=" + conNumber + "&debug=" + debugMode;
                             this.options.url = url;
                             console.log("url = " + url);
                         });
@@ -322,8 +363,9 @@
 
                         var sts = document.getElementById("stsSpan");
 
-                        if (response === "No interest payments found") {
-                            sts.innerHTML = "<b>No Interest Payments Found, Please check Statement!</b>";
+                        if (response.match("^Error:")) {
+
+                            sts.innerHTML = "<b><H2>" + response + "</br>Please check Statement!</H2></b>";
                         }
                         else {
 

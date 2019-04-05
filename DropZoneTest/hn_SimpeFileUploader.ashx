@@ -1,5 +1,6 @@
 ﻿<%@ WebHandler Language="C#" Class="hn_SimpeFileUploader" %>
 
+
 using System;
 using System.Web;
 using System.IO;
@@ -10,6 +11,8 @@ using iTextSharp.text.pdf;
 using iTextSharp.text;
 
 using System.Web.Script.Serialization;
+using System.Diagnostics;
+using static pdfUtility;
 
 //using int_pdf.interestItem;
 
@@ -18,7 +21,10 @@ using System.Web.Script.Serialization;
 public class hn_SimpeFileUploader : IHttpHandler
 {
 
-    public  void ProcessRequest(HttpContext context)
+    string debugFile = "";
+    bool deb = false;
+
+    public void ProcessRequest(HttpContext context)
     {
 
         HttpResponse oResponse = context.Response;
@@ -27,7 +33,17 @@ public class hn_SimpeFileUploader : IHttpHandler
         context.Response.ContentType = "application/pdf";
         iTextSharp.text.Document doc = new iTextSharp.text.Document();
 
-        string dirFullPath = HttpContext.Current.Server.MapPath("~/MediaUploader/");
+        // new debug file (if exists) 
+        int cnt = 0;
+        debugFile = HttpContext.Current.Server.MapPath("~/Reports/") + "DEBUG.txt";
+        while(File.Exists(debugFile))
+        {
+            debugFile = HttpContext.Current.Server.MapPath("~/Reports/") + cnt + "_DEBUG.txt";
+        }
+
+        string dirFullPath = HttpContext.Current.Server.MapPath("~/Reports/");
+        string logFile = HttpContext.Current.Server.MapPath("~/Reports/") + "LOG.HTML";
+        string logLine = "<tr><td>" + DateTime.Now.ToShortDateString() + "</td><td>" + DateTime.Now.ToShortTimeString() + "</td><td>" + context.Request.QueryString.ToString().Replace("&", "</td><td>") + "</td>";
         string[] files;
         int numFiles;
         files = System.IO.Directory.GetFiles(dirFullPath);
@@ -42,127 +58,187 @@ public class hn_SimpeFileUploader : IHttpHandler
         decimal endBalance = 0;
         string pathToSave = "";
 
+        // url: "hn_SimpeFileUploader.ashx?start=20170301&end=20180228",
+        DateTime startDate = DateTime.MinValue;
+        DateTime endDate = DateTime.MaxValue;
+        string region = "";
+        string name = "";
+        string num = "";
+        string debug = "";
+
+        if (context.Request.QueryString.Count == 6)
+        {
+            startDate = convertToDate(context.Request.QueryString.Get("start"));
+            endDate = convertToDate(context.Request.QueryString.Get("end"));
+            region = HttpContext.Current.Server.UrlDecode(context.Request.QueryString.Get("region"));
+            name = HttpContext.Current.Server.UrlDecode(context.Request.QueryString.Get("name"));
+            num = HttpContext.Current.Server.UrlDecode(context.Request.QueryString.Get("num"));
+            debug = HttpContext.Current.Server.UrlDecode(context.Request.QueryString.Get("debug"));
+        }
+
+        Debug.WriteLineIf(deb, "Processing Context");
+        Debug.WriteLineIf(deb, "---------------------------------------------------");
+        Debug.WriteLineIf(deb, "StartDate : " + startDate.ToShortDateString());
+        Debug.WriteLineIf(deb, "EndDate : " + endDate.ToShortDateString());
+        Debug.WriteLineIf(deb, "Region : " + region);
+        Debug.WriteLineIf(deb, "Name : " + name);
+        Debug.WriteLineIf(deb, "Num : " + num);
+        Debug.WriteLineIf(deb, "Debug : " + debug);
+        Debug.WriteLineIf(deb, "---------------------------------------------------");
+        Debug.WriteLineIf(deb, "Context Files");
         foreach (string s in context.Request.Files)
         {
+            Debug.WriteLineIf(deb, s);
+        }
+        Debug.WriteLineIf(deb, "---------------------------------------------------");
+
+        foreach (string s in context.Request.Files)
+        {
+            Debug.WriteLineIf(deb, "");
+            Debug.WriteLineIf(deb, "Busy with File : " + s);
+
             HttpPostedFile file = context.Request.Files[s];
             string fileName = file.FileName;
-            string fileExtension = file.ContentType;
+            string fileContentType = file.ContentType;
+            Debug.WriteLineIf(deb, "FileName : " + fileName);
+            Debug.WriteLineIf(deb, "FileContentType : " + fileContentType);
 
             if (!string.IsNullOrEmpty(fileName))
             {
-                fileExtension = System.IO.Path.GetExtension(fileName);
+                string fileExtension = System.IO.Path.GetExtension(fileName);
                 str_image = "STMNT_" + System.IO.Path.GetFileNameWithoutExtension(fileName) + "_" + numFiles.ToString() + fileExtension;
-                pathToSave = HttpContext.Current.Server.MapPath("~/MediaUploader/") + str_image;
+                Debug.WriteLineIf(deb,  "Generated File Name : " + str_image);
+
+                pathToSave = HttpContext.Current.Server.MapPath("~/Reports/") + str_image;
+                Debug.WriteLineIf(deb,  "Save Path  : " + pathToSave);
                 file.SaveAs(pathToSave);
 
                 List<StatementLine> items = new List<StatementLine>();
 
-                // url: "hn_SimpeFileUploader.ashx?start=20170301&end=20180228",
-                DateTime startDate = DateTime.MinValue;
-                DateTime endDate = DateTime.MaxValue;
-                string region = "";
-                string name = "";
-                string num = "";
-
-                if (context.Request.QueryString.Count == 5)
+                try
                 {
-                    startDate = convertToDate(context.Request.QueryString.Get("start"));
-                    endDate = convertToDate(context.Request.QueryString.Get("end"));
-                    region = HttpContext.Current.Server.UrlDecode(context.Request.QueryString.Get("region"));
-                    name = HttpContext.Current.Server.UrlDecode(context.Request.QueryString.Get("name"));
-                    num = HttpContext.Current.Server.UrlDecode(context.Request.QueryString.Get("num"));
-                }
+                    Debug.WriteLineIf(deb, "Extracting Statements From PDF ");
+                    List<StatementHeader> stmnts = pdfUtility.ExtractStatementsFromPdf(pathToSave);
 
-                List<StatementHeader> stmnts = pdfUtility.ExtractStatementsFromPdf(pathToSave);
-
-                if (stmnts.Count > 0)
-                {
-
-                    // GET A LIST OF ALL FILES OLDER THAN 2 DAYS & DELETE 
-                    string[] old_files = System.IO.Directory.GetFiles(HttpContext.Current.Server.MapPath("~/MediaUploader/"));
-                    foreach (string fle in old_files)
+                    if (stmnts.Count > 0)
                     {
-                        FileInfo fi = new FileInfo(fle);
-                        if (fi.CreationTime < DateTime.Now.AddDays(-1))
-                            fi.Delete();
-                    }
-                    // delete input pdf file 
-                    System.IO.File.Delete(pathToSave);
-
-                    List<string> AccountNumbers = new List<string>();
-
-                    foreach (StatementHeader sh in stmnts)
-                    {
-                        foreach (StatementLine sl in sh.lines)
+                        if(debug == "verbose")
                         {
-                            if (sl.transactionDate >= startDate)
+                            logWrite(logFile, logLine);
+
+                        }
+                        // GET A LIST OF ALL FILES OLDER THAN 2 DAYS & DELETE 
+                        string[] old_files = System.IO.Directory.GetFiles(HttpContext.Current.Server.MapPath("~/Reports/"));
+                        foreach (string fle in old_files)
+                        {
+                            FileInfo fi = new FileInfo(fle);
+                            if (fi.Name.ToUpper() != "LOG.HTML")
                             {
-                                if (sl.transactionDate <= endDate)
+                                if (fi.CreationTime < DateTime.Now.AddDays(-1))
+                                    fi.Delete();
+                            }
+                        }
+                        // delete input pdf file 
+                        System.IO.File.Delete(pathToSave);
+
+                        List<string> AccountNumbers = new List<string>();
+
+                        foreach (StatementHeader sh in stmnts)
+                        {
+                            foreach (StatementLine sl in sh.lines)
+                            {
+                                if (sl.transactionDate >= startDate)
                                 {
-                                    if (sl.Ref != 0)
+                                    if (sl.transactionDate <= endDate)
                                     {
-                                        endBalance = sl.Balance;
-                                        if (sl.Ref == 93 && sl.Narrative.StartsWith("INTEREST ON"))
+                                        if (sl.Ref != 0)
                                         {
-                                            items.Add(sl);
-                                            //output += "Add Interest <==============================" + System.Environment.NewLine;
-                                            sum += sl.Debit;
-                                            // Finds first element greater than 20
-                                            InterestAccount ia = pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber);
-                                            if (ia == null)
+                                            endBalance = sl.Balance;
+                                            if (sl.Ref == 93 && sl.Narrative.StartsWith("INTEREST ON"))
                                             {
-                                                // create new interestAccount
-                                                pi.Accounts.Add(new InterestAccount(sl.InterestAccountNumber, sl.Debit));
-                                            }
-                                            else
-                                            {
-                                                // add interest to running total 
-                                                pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber).AddAmount(sl.Debit);
+                                                items.Add(sl);
+                                                //output += "Add Interest <==============================" + System.Environment.NewLine;
+                                                sum += sl.Debit;
+                                                // Finds first element greater than 20
+                                                InterestAccount ia = pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber);
+                                                if (ia == null)
+                                                {
+                                                    // create new interestAccount
+                                                    pi.Accounts.Add(new InterestAccount(sl.InterestAccountNumber, sl.Debit));
+                                                }
+                                                else
+                                                {
+                                                    // add interest to running total 
+                                                    pi.Accounts.Find(acc => acc.InterestAccountNumber == sl.InterestAccountNumber).AddAmount(sl.Debit);
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+                            pi.MainAccount = sh.AccNumber;
                         }
-                        pi.MainAccount = sh.AccNumber;
-                    }
-                    pi.Items = items;
-                    pi.BalanceAtEnd = endBalance;
-                    pi.InterestPaid = sum;
+                        if(items.Count == 0)
+                        {
+                            throw new Exception("No Interest Line Items found!</br>Please check start & end dates!");
+                        }
+                        pi.Items = items;
+                        pi.BalanceAtEnd = endBalance;
+                        pi.InterestPaid = sum;
 
-                    string accountList = "";
-                    str_image = "REPORT_" + System.IO.Path.GetFileNameWithoutExtension(fileName) + "_" + numFiles.ToString() + fileExtension;
+                        string accountList = "";
+                        str_image = "REPORT_" + System.IO.Path.GetFileNameWithoutExtension(fileName) + "_" + numFiles.ToString() + fileExtension;
 
-                    // str_image = "REPORT_xxxx5043_5 - Copy.PDF";
-                    pathToSave = HttpContext.Current.Server.MapPath("~/MediaUploader/") + str_image;
+                        // str_image = "REPORT_xxxx5043_5 - Copy.PDF";
+                        pathToSave = HttpContext.Current.Server.MapPath("~/Reports/") + str_image;
 
-                    decimal InterestPaid = 0;
+                        decimal InterestPaid = 0;
 
 
-                    if (pi.Accounts.Count > 1)
-                    {
-                        // many accounts - so generate list of acccounts only 
-                        accountList = ",\"accountTotals\":" + pi.getJson();
+                        if (pi.Accounts.Count > 1)
+                        {
+                            // many accounts - so generate list of acccounts only 
+                            accountList = ",\"accountTotals\":" + pi.getJson();
 
-                        InterestPaid = pi.Accounts.Find(item => item.InterestAccountNumber == pi.MainAccount).Total;
+                            InterestPaid = pi.Accounts.Find(item => item.InterestAccountNumber == pi.MainAccount).Total;
+
+
+                        }
+                        else
+                        {
+
+                            InterestPaid = pi.InterestPaid;
+                        }
+                        try
+                        {
+
+                            pdfUtility.genPDF(pathToSave, InterestPaid, pi.BalanceAtEnd, startDate, endDate, stmnts, region, name, num);
+
+                            str_image = "{\"filename\":\"" + str_image + "\"" + accountList + "}";
+                            logLine += "<td>OK</td></tr>";
+
+
+                        }
+                        catch (Exception genPdfException)
+                        {
+                            str_image = "Error: " + genPdfException.InnerException.Message;
+                            logLine += "<td>" + str_image + "</td></tr>";
+                        }
+
+                        // str_image = "{\"filename\":\"" + str_image + "\"" + accountList + "}";
 
 
                     }
                     else
                     {
-
-                        InterestPaid = pi.InterestPaid;
+                        str_image = "Error: Unable to Read / Process Statements";
+                        logLine += "<td>" + str_image + "</td></tr>";
                     }
-                    pdfUtility.genPDF(pathToSave, InterestPaid, pi.BalanceAtEnd, startDate, endDate, stmnts, region, name, num);
-
-
-                    str_image = "{\"filename\":\"" + str_image + "\"" + accountList + "}";
-
-
                 }
-                else
+                catch (Exception e)
                 {
-                    str_image = "No interest payments found";
+                    str_image = "Error:" + e.Message;
+                    logLine += "<td>" + str_image + "</td></tr>";
                 }
 
                 context.Response.ClearContent();
@@ -171,9 +247,28 @@ public class hn_SimpeFileUploader : IHttpHandler
                 context.Response.Flush();
                 context.Response.Close();
 
+                logWrite(logFile, logLine);
 
             }
         }
+
+    }
+
+    private void logWrite(string fileName, string logLine)
+    {
+        bool doHeader = false;
+        if (!File.Exists(fileName))
+        {
+            doHeader = true;
+        }
+        StreamWriter sw = File.AppendText(fileName);
+        if (doHeader)
+        {
+            sw.WriteLine("<html><body><div><table border=1 style=\"border-collapse:collapse; cellpadding:2px; \">");
+        }
+        sw.WriteLine(logLine);
+        sw.Flush();
+        sw.Close();
 
     }
 
